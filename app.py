@@ -301,11 +301,13 @@ def tela_chat():
 
                     st.markdown(answer)
                     st.session_state.messages.append({"role": "assistant", "content": answer})
+                    st.session_state["_ok"] = True
 
                 except Exception as e:
-                    err = str(e)
-                    st.error(f"Erro ao consultar o modelo: {err}")
+                    st.session_state["_ok"] = False
+                    st.error(f"Erro: {e}")
 
+    if st.session_state.pop("_ok", False):
         st.rerun()
 
     st.markdown("""
