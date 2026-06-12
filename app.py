@@ -77,12 +77,13 @@ st.markdown("""
     .main-header p  { margin: 0.3rem 0 0; opacity: 0.85; font-size: 0.9rem; }
 
     .session-info {
-        background: #eaf4fb;
-        border-left: 4px solid #2e86ab;
+        background: #2e86ab;
+        border-left: 4px solid #1a5276;
         padding: 0.6rem 1rem;
         border-radius: 6px;
         font-size: 0.85rem;
         margin-bottom: 1rem;
+        color: #ffffff !important;
     }
     .session-expired {
         background: #fdecea;
