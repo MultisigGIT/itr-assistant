@@ -1,11 +1,8 @@
 import streamlit as st
 from google import genai
 from google.genai import types
-import time
 import datetime
 import os
-import json
-import pathlib
 
 # ── Configuração da página ──────────────────────────────────────────────────
 st.set_page_config(
@@ -136,33 +133,11 @@ def formatar_tempo(segundos):
     s = int(segundos % 60)
     return f"{m:02d}:{s:02d}"
 
-@st.cache_resource(show_spinner="Carregando documentos de referência ITR...")
+@st.cache_resource
 def get_itr_files():
-    """Faz upload dos PDFs da pasta docs/ para a Gemini Files API (uma vez por instância)."""
-    try:
-        api_key = st.secrets["GEMINI_API_KEY"]
-    except Exception:
-        api_key = os.environ.get("GEMINI_API_KEY", "")
-    if not api_key:
-        return []
-
-    client = genai.Client(api_key=api_key)
-    docs_dir = pathlib.Path(__file__).parent / "docs"
-    if not docs_dir.exists():
-        return []
-
-    pdf_files = sorted(docs_dir.glob("*.pdf"))
-    if not pdf_files:
-        return []
-
-    uploaded = []
-    for pdf in pdf_files:
-        try:
-            f = client.files.upload(file=str(pdf), config={"mime_type": "application/pdf"})
-            uploaded.append(f)
-        except Exception:
-            pass
-    return uploaded
+    # Upload de PDFs desabilitado — PDFs grandes consomem toda a cota gratuita de tokens.
+    # Reabilitar apenas com plano pago ou PDFs muito pequenos.
+    return []
 
 
 def get_gemini_client():
