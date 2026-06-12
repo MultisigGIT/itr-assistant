@@ -1,5 +1,6 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import time
 import datetime
 import os
@@ -145,8 +146,7 @@ def get_itr_files():
     if not api_key:
         return []
 
-    genai.configure(api_key=api_key)
-
+    client = genai.Client(api_key=api_key)
     docs_dir = pathlib.Path(__file__).parent / "docs"
     if not docs_dir.exists():
         return []
@@ -158,7 +158,7 @@ def get_itr_files():
     uploaded = []
     for pdf in pdf_files:
         try:
-            f = genai.upload_file(str(pdf), mime_type="application/pdf")
+            f = client.files.upload(file=str(pdf), config={"mime_type": "application/pdf"})
             uploaded.append(f)
         except Exception:
             pass
@@ -173,11 +173,7 @@ def get_gemini_client():
     if not api_key:
         st.error("⚠️ Chave GEMINI_API_KEY não configurada. Contate o administrador.")
         st.stop()
-    genai.configure(api_key=api_key)
-    return genai.GenerativeModel(
-        model_name="gemini-1.5-pro",
-        system_instruction=SYSTEM_PROMPT,
-    )
+    return genai.Client(api_key=api_key)
 
 # ── Tela de login ────────────────────────────────────────────────────────────
 def tela_login():
@@ -279,25 +275,36 @@ def tela_chat():
         with st.chat_message("assistant"):
             with st.spinner("Consultando base de conhecimento..."):
                 try:
-                    model = get_gemini_client()
+                    client = get_gemini_client()
                     itr_files = get_itr_files()
+
                     file_context = []
                     if itr_files:
-                        file_context = [
-                            {"role": "user", "parts": itr_files + ["Use estes documentos como referência principal nas suas respostas sobre ITR."]},
-                            {"role": "model", "parts": ["Documentos recebidos e analisados. Pronto para responder sobre ITR com base neste material."]},
+                        file_parts = [
+                            types.Part(file_data=types.FileData(file_uri=f.uri, mime_type="application/pdf"))
+                            for f in itr_files
                         ]
-                    chat = model.start_chat(history=file_context + st.session_state.gemini_history)
+                        file_parts.append(types.Part(text="Use estes documentos como referência principal nas suas respostas sobre ITR."))
+                        file_context = [
+                            types.Content(role="user", parts=file_parts),
+                            types.Content(role="model", parts=[types.Part(text="Documentos recebidos. Pronto para responder sobre ITR.")]),
+                        ]
+
+                    history_contents = [
+                        types.Content(role=m["role"], parts=[types.Part(text=p) for p in m["parts"]])
+                        for m in st.session_state.gemini_history
+                    ]
+
+                    chat = client.chats.create(
+                        model="gemini-2.0-flash",
+                        config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT),
+                        history=file_context + history_contents,
+                    )
                     response = chat.send_message(prompt)
                     answer = response.text
 
-                    # Atualiza histórico Gemini
-                    st.session_state.gemini_history.append(
-                        {"role": "user", "parts": [prompt]}
-                    )
-                    st.session_state.gemini_history.append(
-                        {"role": "model", "parts": [answer]}
-                    )
+                    st.session_state.gemini_history.append({"role": "user", "parts": [prompt]})
+                    st.session_state.gemini_history.append({"role": "model", "parts": [answer]})
 
                     st.markdown(answer)
                     st.session_state.messages.append({"role": "assistant", "content": answer})
